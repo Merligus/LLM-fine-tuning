@@ -66,7 +66,7 @@ class ScriptArguments:
         default="constant",
         metadata={"help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"},
     )
-    max_steps: int = field(default=1000, metadata={"help": "How many optimizer update steps to take"})
+    max_steps: int = field(default=100, metadata={"help": "How many optimizer update steps to take"})
     warmup_ratio: float = field(default=0.03, metadata={"help": "Fraction of steps to do a warmup for"})
     save_steps: int = field(default=10, metadata={"help": "Save checkpoint every X updates steps."})
     logging_steps: int = field(default=1, metadata={"help": "Log every X updates steps."})
@@ -84,7 +84,7 @@ def formatting_func(example):
     return text
 
 # Load the GG model
-model_id = "google/gemma-2b"
+model_id = "google/gemma-7b"
 
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -119,7 +119,7 @@ dataset = dataset.train_test_split(test_size=0.1, seed=42)
 train_dataset = dataset["train"]
 eval_dataset = dataset["test"]
 
-output_dir = "outputs/gemma-lora"
+output_dir = "outputs/gemma-7b-lora"
 
 training_arguments = SFTConfig(
     output_dir=output_dir,

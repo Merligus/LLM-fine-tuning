@@ -64,8 +64,8 @@ def eval(model, tokenizer, dataset, batch_size=16):
 
 
 # Load the GG model
-model_id = "google/gemma-2b"
-output_dir = "outputs/gemma-lora/checkpoint-10"
+model_id = "google/gemma-7b"
+output_dir = "outputs/gemma-7b-lora/checkpoint-100"
 dataset_name = "Abirate/english_quotes"
 
 dataset = load_dataset(dataset_name, split="train")
@@ -93,6 +93,6 @@ model = model.merge_and_unload()
 tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 
-train_score = 0 # eval(model, tokenizer, train_dataset)
+train_score = eval(model, tokenizer, train_dataset)
 eval_score = eval(model, tokenizer, eval_dataset)
 print(f"Train score: {train_score * 100:.2f}\nEval score: {eval_score * 100:.2f}")
