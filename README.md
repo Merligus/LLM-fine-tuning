@@ -55,8 +55,11 @@ Using Gemma-2b open-source LLM:
 |Lora-20      |0.4934  |0.2265  |0.4946  |0.4937     |0.9269         |0.9097      |0.9178  |
 |Lora-30      |0.5082  |0.3003  |0.5084  |0.5071     |0.9330         |0.9144      |0.9232  |
 |Lora-100     |0.5241  |0.3138  |0.5238  |0.5237     |0.9364         |0.9240      |0.9298  |
+|Lora-200     |0.5194  |0.3023  |0.5192  |0.5192     |0.9345         |0.9276      |0.9307  |
+|Lora-500     |0.5224  |0.3087  |0.5222  |0.5228     |0.9343         |0.9295      |0.9316  |
+|Lora-1000    |0.5253  |0.3081  |0.5217  |0.5223     |0.9302         |0.9298      |0.9297  |
 
-This tells us that the model is not overfitting since the quote samples weren't in the train step but the LLM still manages to improve the metrics over the training process.
+This tells us that the model is not overfitting since the quote samples weren't in the train step but the LLM still manages to improve the metrics over the training process. After 100 steps it is useless training since the model does not improve.
 
 ```
 lm_eval --model hf \
