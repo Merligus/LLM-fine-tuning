@@ -22,7 +22,7 @@ pip install -r requirements.txt
 To train the model:
 
 ```
-python scripts/gemma-2b-ft.py
+python scripts/train.py
 ```
 
 To evaluate the same model
