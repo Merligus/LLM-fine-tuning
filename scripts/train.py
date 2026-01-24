@@ -79,10 +79,6 @@ parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
 
-def formatting_func(example):
-    text = f"### Quote: {example['quote'][0]}\n### Author: {example['author'][0]}"
-    return text
-
 # Load the GG model
 model_id = "google/gemma-2b"
 output_dir = "outputs/gemma-2b-lora"
@@ -105,6 +101,10 @@ model = AutoModelForCausalLM.from_pretrained(
 # Load tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 tokenizer.pad_token_id = tokenizer.eos_token_id
+
+def formatting_func(example):
+    text = f"Quote: {example['quote']}\nAuthor: {example['author']}" + tokenizer.eos_token
+    return text
 
 lora_config = LoraConfig(
     r=script_args.lora_r,
