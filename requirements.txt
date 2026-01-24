@@ -6,4 +6,7 @@ trl==0.27.0
 datasets==4.5.0
 python-dotenv==1.2.1
 tensorboardX==2.6.4
-levenshtein==0.27.3
+bert_score==0.3.13
+evaluate==0.4.6
+rouge_score==0.1.2
+lm-eval==0.4.9.2

@@ -1,4 +1,5 @@
 import torch
+import gc
 import os
 
 from dotenv import load_dotenv
@@ -7,20 +8,15 @@ from datasets import load_dataset
 from peft import PeftModel
 from tqdm import tqdm
 
-# eval metrics
-from Levenshtein import ratio
-
-
+# Load env var
 load_dotenv()
 os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-def formatting_func(example):
-    text = f"### Quote: {example['quote']}\n### Author: {example['author']}"
-    return text
-
-def eval(model, tokenizer, dataset, batch_size=16):
+def eval(model, tokenizer, dataset, batch_size=4):
     device = model.device
-    total_score = 0
+    predictions = []
+    references = []
     
     # Ensure pad token is set
     if tokenizer.pad_token_id is None:
@@ -34,13 +30,15 @@ def eval(model, tokenizer, dataset, batch_size=16):
         
         # Prepare inputs
         prompts = [f"### Quote: {q}" for q in quotes]
-        inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
         
         # Generate
-        with torch.no_grad():
-            outputs = model.generate(**inputs, pad_token_id=tokenizer.pad_token_id)
+        with torch.inference_mode():
+            # Generate text
+            outputs = model.generate(**inputs, pad_token_id=tokenizer.pad_token_id, max_new_tokens=100)
         
         # Decode and score
+        outputs = outputs.cpu()
         generated_texts = tokenizer.batch_decode(outputs, skip_special_tokens=True)
         
         for j, generated_text in enumerate(generated_texts):
@@ -52,20 +50,40 @@ def eval(model, tokenizer, dataset, batch_size=16):
                 generated_suffix = generated_text[len(prompt):].strip()
             else:
                 generated_suffix = generated_text.strip()
-            score = ratio(real_suffix, generated_suffix)
+                
+            references.append(real_suffix)
+            predictions.append(generated_suffix)
+                
             print(f"**********************************")
             print(prompt)
             print(real_suffix)
             print(generated_suffix)
-            print(score)
-            total_score += score
-            
-    return total_score / len(dataset)
 
+        del inputs, outputs
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    return predictions, references
+
+def calculate_metrics(predictions, references):
+    # Load metrics
+    rouge = evaluate.load("rouge")
+    bertscore = evaluate.load("bertscore")
+    
+    # Calculate ROUGE (Word overlap)
+    rouge_results = rouge.compute(predictions=predictions, references=references)
+
+    # Calculate BERT (Semantic similarity)
+    bert_results = bertscore.compute(predictions=predictions, references=references, lang="en")
+    bert_precision = sum(bert_results['precision']) / len(bert_results['precision'])
+    bert_recall = sum(bert_results['recall']) / len(bert_results['recall'])
+    bert_f1 = sum(bert_results['f1']) / len(bert_results['f1'])
+    
+    return {**rouge_results, "bert_precision": bert_precision, "bert_recall": bert_recall, "bert_f1": bert_f1}
 
 # Load the GG model
-model_id = "google/gemma-7b"
-output_dir = "outputs/gemma-7b-lora/checkpoint-100"
+model_id = "google/gemma-2b"
+output_dir = "outputs/gemma-2b-lora/checkpoint-100"
 dataset_name = "Abirate/english_quotes"
 
 dataset = load_dataset(dataset_name, split="train")
@@ -93,6 +111,22 @@ model = model.merge_and_unload()
 tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 
-train_score = eval(model, tokenizer, train_dataset)
-eval_score = eval(model, tokenizer, eval_dataset)
-print(f"Train score: {train_score * 100:.2f}\nEval score: {eval_score * 100:.2f}")
+# Get predictions and references
+train_predictions, train_references = [], [] #eval(model, tokenizer, train_dataset)
+eval_predictions, eval_references = eval(model, tokenizer, eval_dataset)
+
+# Free memory to calculate using rouoge and bert
+# Delete the model reference
+del model
+del base_model
+# Force garbage collection
+gc.collect()
+torch.cuda.empty_cache()
+
+# eval metrics
+import evaluate
+
+eval_results = calculate_metrics(eval_predictions, eval_references)
+print("Eval:")
+for metric_name in eval_results:
+    print(f"\t{metric_name}: {eval_results[metric_name]:.4f}")

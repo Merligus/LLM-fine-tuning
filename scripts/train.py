@@ -84,7 +84,8 @@ def formatting_func(example):
     return text
 
 # Load the GG model
-model_id = "google/gemma-7b"
+model_id = "google/gemma-2b"
+output_dir = "outputs/gemma-2b-lora"
 
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -118,8 +119,6 @@ dataset = load_dataset(script_args.dataset_name, split="train")
 dataset = dataset.train_test_split(test_size=0.1, seed=42)
 train_dataset = dataset["train"]
 eval_dataset = dataset["test"]
-
-output_dir = "outputs/gemma-7b-lora"
 
 training_arguments = SFTConfig(
     output_dir=output_dir,
