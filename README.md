@@ -44,6 +44,20 @@ python scripts/eval.py
 |Bert-Recall	|Paragraph Seq.	|Completeness (How much of the Reference did the model capture?)|
 |Bert-F1    	|Paragraph Seq.	|Both|
 
+### Results
+
+Using Gemma-2b open-source LLM:
+
+|Method-Steps |ROUGE-1 |ROUGE-2 |ROUGE-L |ROUGE-Lsum |Bert-Precision |Bert-Recall |Bert-F1 | 
+|---          |---     |---     |---     |---        |---            |---         |---     |
+|Max-Values   |1.0000  |1.0000  |1.0000  |1.0000     |1.0000         |1.0000      |1.0000  |
+|Lora-10      |0.4743  |0.2357  |0.4740  |0.4732     |0.9248         |0.9203      |0.9222  |
+|Lora-20      |0.4934  |0.2265  |0.4946  |0.4937     |0.9269         |0.9097      |0.9178  |
+|Lora-30      |0.5082  |0.3003  |0.5084  |0.5071     |0.9330         |0.9144      |0.9232  |
+|Lora-100     |0.5241  |0.3138  |0.5238  |0.5237     |0.9364         |0.9240      |0.9298  |
+
+This tells us that the model is not overfitting since the quote samples weren't in the train step but the LLM still manages to improve the metrics over the training process.
+
 ```
 lm_eval --model hf \
     --model_args pretrained=path/to/your/gemma-2b,dtype=float16 \

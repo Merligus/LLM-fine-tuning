@@ -29,7 +29,7 @@ def eval(model, tokenizer, dataset, batch_size=4):
         authors = batch['author']
         
         # Prepare inputs
-        prompts = [f"### Quote: {q}" for q in quotes]
+        prompts = [f"Quote: {q}" for q in quotes]
         inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
         
         # Generate
@@ -43,7 +43,7 @@ def eval(model, tokenizer, dataset, batch_size=4):
         
         for j, generated_text in enumerate(generated_texts):
             prompt = prompts[j]
-            real_suffix = f"### Author: {authors[j]}"
+            real_suffix = f"Author: {authors[j]}"
             
             # Remove prompt from generated text
             if generated_text.startswith(prompt):
@@ -65,7 +65,7 @@ def eval(model, tokenizer, dataset, batch_size=4):
 
     return predictions, references
 
-def calculate_metrics(predictions, references):
+def compute_metrics(predictions, references):
     # Load metrics
     rouge = evaluate.load("rouge")
     bertscore = evaluate.load("bertscore")
@@ -112,7 +112,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 
 # Get predictions and references
-train_predictions, train_references = [], [] #eval(model, tokenizer, train_dataset)
+train_predictions, train_references = eval(model, tokenizer, train_dataset)
 eval_predictions, eval_references = eval(model, tokenizer, eval_dataset)
 
 # Free memory to calculate using rouoge and bert
@@ -126,7 +126,12 @@ torch.cuda.empty_cache()
 # eval metrics
 import evaluate
 
-eval_results = calculate_metrics(eval_predictions, eval_references)
+train_results = compute_metrics(train_predictions, train_references)
+print("Train:")
+for metric_name in train_results:
+    print(f"\t{metric_name}: {train_results[metric_name]:.4f}")
+
+eval_results = compute_metrics(eval_predictions, eval_references)
 print("Eval:")
 for metric_name in eval_results:
     print(f"\t{metric_name}: {eval_results[metric_name]:.4f}")
