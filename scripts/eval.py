@@ -91,12 +91,6 @@ dataset = dataset.train_test_split(test_size=0.1, seed=42)
 train_dataset = dataset["train"]
 eval_dataset = dataset["test"]
 
-quantization_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_compute_dtype=torch.float16,
-    bnb_4bit_quant_type="nf4"
-)
-
 # Reload model in FP16 and merge it with LoRA weights
 base_model = AutoModelForCausalLM.from_pretrained(
     model_id,
@@ -104,7 +98,7 @@ base_model = AutoModelForCausalLM.from_pretrained(
     token=os.environ["HF_TOKEN"],
     device_map={"":0},
 )
-model = PeftModel.from_pretrained(base_model, output_dir)
+model = PeftModel.from_pretrained(base_model, output_dir, is_trainable=False)
 model = model.merge_and_unload()
 
 # Reload tokenizer to save it

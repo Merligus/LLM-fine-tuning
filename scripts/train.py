@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, HfArgumentParser, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
-from peft import LoraConfig
+from peft import LoraConfig, LoftQConfig
 from trl import SFTTrainer, SFTConfig
 
 load_dotenv()
@@ -66,6 +66,14 @@ class ScriptArguments:
         default="constant",
         metadata={"help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"},
     )
+    quantization_type: str = field(
+        default="qlora",
+        metadata={"help": "Quantization type choosing between LoftQ and QLora. Possible values loftq, qlora"},
+    )
+    ft_method: str = field(
+        default="dora",
+        metadata={"help": "Fine tuning method to train the model choosing between Lora and Dora. Possible values lora, dora"},
+    )
     max_steps: int = field(default=100, metadata={"help": "How many optimizer update steps to take"})
     warmup_ratio: float = field(default=0.03, metadata={"help": "Fraction of steps to do a warmup for"})
     save_steps: int = field(default=10, metadata={"help": "Save checkpoint every X updates steps."})
@@ -83,19 +91,30 @@ script_args = parser.parse_args_into_dataclasses()[0]
 model_id = "google/gemma-2b"
 output_dir = "outputs/gemma-2b-lora"
 
-quantization_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_compute_dtype=torch.float16,
-    bnb_4bit_quant_type="nf4"
-)
+# Additional parameters
+additional_lora_configs = {}
+quantization_config = None
+
+if script_args.ft_method == "dora":
+    additional_lora_configs["use_dora"] = True
+
+if script_args.quantization_type == "qlora":
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_quant_type="nf4"
+    )
+elif script_args.quantization_type == "loftq":
+    additional_lora_configs["init_lora_weights"] = "loftq",
+    additional_lora_configs["loftq_config"] = LoftQConfig(loftq_bits=4)
 
 # Load model
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    quantization_config=quantization_config, 
     torch_dtype=torch.float32,
     attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
     token=os.environ["HF_TOKEN"],
+    quantization_config=quantization_config, 
 )
 
 # Load tokenizer
@@ -112,7 +131,9 @@ lora_config = LoraConfig(
     bias="none",
     task_type="CAUSAL_LM",
     lora_alpha=script_args.lora_alpha,
-    lora_dropout=script_args.lora_dropout
+    lora_dropout=script_args.lora_dropout,
+    # LoftQ and Dora configs
+    **additional_lora_configs
 )
 
 dataset = load_dataset(script_args.dataset_name, split="train")
@@ -149,3 +170,5 @@ trainer = SFTTrainer(
 )
 
 trainer.train()
+
+print(f"{script_args.ft_method} x {script_args.quantization_type} training finished")

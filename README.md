@@ -61,6 +61,19 @@ Using Gemma-2b open-source LLM:
 
 This tells us that the model is not overfitting since the quote samples weren't in the train step but the LLM still manages to improve the metrics over the training process. After 100 steps it is useless training since the model does not improve.
 
+Now we will compare different types of quantization and finetuning methods:
+
+- QLora x Lora
+- QLora x Dora
+- LoftQ x Lora
+- LoftQ x Dora
+
+|Method-Quant |ROUGE-1 |ROUGE-2 |ROUGE-L |ROUGE-Lsum |Bert-Precision |Bert-Recall |Bert-F1 | 
+|---          |---     |---     |---     |---        |---            |---         |---     |
+|QLora-Lora   |0.5310  |0.3242  |0.5325  |0.5333     |0.9377         |0.9269      |0.9319  |
+|QLora-Dora   |0.5217  |0.3169  |0.5209  |0.5211     |0.9356         |0.9246      |0.9298  |
+
+
 ```
 lm_eval --model hf \
     --model_args pretrained=path/to/your/gemma-2b,dtype=float16 \
