@@ -78,8 +78,8 @@ def compute_metrics(predictions, references):
     return {**rouge_results, "bert_precision": bert_precision, "bert_recall": bert_recall, "bert_f1": bert_f1}
 
 # Load the GG model
-model_id = "TinyLlama/TinyLlama_v1.1"
-output_dir = "outputs/tinyllama-v1.1-lora/checkpoint-100"
+model_id = "google/gemma-2b" # "TinyLlama/TinyLlama_v1.1"
+output_dir = "outputs/gemma-2b-lora/checkpoint-100" # "outputs/tinyllama-v1.1-lora/checkpoint-100"
 dataset_name = "Abirate/english_quotes"
 quantization_type = "loftq"
 
