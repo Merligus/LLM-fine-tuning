@@ -68,11 +68,14 @@ Now we will compare different types of quantization and finetuning methods:
 - LoftQ x Lora
 - LoftQ x Dora
 
-|Method-Quant |ROUGE-1 |ROUGE-2 |ROUGE-L |ROUGE-Lsum |Bert-Precision |Bert-Recall |Bert-F1 | 
-|---          |---     |---     |---     |---        |---            |---         |---     |
-|QLora-Lora   |0.5310  |0.3242  |0.5325  |0.5333     |0.9377         |0.9269      |0.9319  |
-|QLora-Dora   |0.5217  |0.3169  |0.5209  |0.5211     |0.9356         |0.9246      |0.9298  |
-
+|Model        |Method-Quant |ROUGE-1 |ROUGE-2 |ROUGE-L |ROUGE-Lsum |Bert-Precision |Bert-Recall |Bert-F1 | 
+|---          |---          |---     |---     |---     |---        |---            |---         |---     |
+|Gemma-2b     |QLora-Lora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
+|Gemma-2b     |QLora-Dora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
+|TinyLlamav1.1|None-Lora    |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
+|TinyLlamav1.1|QLora-Lora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
+|TinyLlamav1.1|LoftQ-Lora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
+|TinyLlamav1.1|LoftQ-Dora   |0.4051  |0.1470  |0.4060  |0.4061     |0.9266         |0.9117      |0.9187  |
 
 ```
 lm_eval --model hf \

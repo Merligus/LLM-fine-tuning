@@ -17,10 +17,6 @@ def eval(model, tokenizer, dataset, batch_size=4):
     device = model.device
     predictions = []
     references = []
-    
-    # Ensure pad token is set
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token_id = tokenizer.eos_token_id
         
     for i in tqdm(range(0, len(dataset), batch_size), desc="Evaluating"):
         # Get batch
@@ -82,28 +78,39 @@ def compute_metrics(predictions, references):
     return {**rouge_results, "bert_precision": bert_precision, "bert_recall": bert_recall, "bert_f1": bert_f1}
 
 # Load the GG model
-model_id = "google/gemma-2b"
-output_dir = "outputs/gemma-2b-lora/checkpoint-100"
+model_id = "TinyLlama/TinyLlama_v1.1"
+output_dir = "outputs/tinyllama-v1.1-lora/checkpoint-100"
 dataset_name = "Abirate/english_quotes"
+quantization_type = "loftq"
 
 dataset = load_dataset(dataset_name, split="train")
 dataset = dataset.train_test_split(test_size=0.1, seed=42)
 train_dataset = dataset["train"]
 eval_dataset = dataset["test"]
 
+# Quantization config
+if quantization_type == "qlora":
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_quant_type="nf4"
+    )
+
 # Reload model in FP16 and merge it with LoRA weights
 base_model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    torch_dtype=torch.float16,
     token=os.environ["HF_TOKEN"],
     device_map={"":0},
+    torch_dtype=torch.float16 if "TinyLlama" in model_id else torch.float32,
 )
 model = PeftModel.from_pretrained(base_model, output_dir, is_trainable=False)
 model = model.merge_and_unload()
 
 # Reload tokenizer to save it
 tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+tokenizer.padding_side = "left"
 tokenizer.pad_token = tokenizer.eos_token
+tokenizer.pad_token_id = tokenizer.eos_token_id
 
 # Get predictions and references
 train_predictions, train_references = eval(model, tokenizer, train_dataset)

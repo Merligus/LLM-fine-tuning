@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, HfArgumentParser, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset
-from peft import LoraConfig, LoftQConfig
+from peft import LoraConfig, LoftQConfig, prepare_model_for_kbit_training
 from trl import SFTTrainer, SFTConfig
 
 load_dotenv()
@@ -43,7 +43,7 @@ class ScriptArguments:
         metadata={"help": "Enables fp16 training."},
     )
     bf16: Optional[bool] = field(
-        default=False,
+        default=True,
         metadata={"help": "Enables bf16 training."},
     )
     packing: Optional[bool] = field(
@@ -67,8 +67,8 @@ class ScriptArguments:
         metadata={"help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"},
     )
     quantization_type: str = field(
-        default="qlora",
-        metadata={"help": "Quantization type choosing between LoftQ and QLora. Possible values loftq, qlora"},
+        default="loftq",
+        metadata={"help": "Quantization type choosing between LoftQ and QLora or None. Possible values loftq, qlora, none"},
     )
     ft_method: str = field(
         default="dora",
@@ -88,8 +88,8 @@ script_args = parser.parse_args_into_dataclasses()[0]
 
 
 # Load the GG model
-model_id = "google/gemma-2b"
-output_dir = "outputs/gemma-2b-lora"
+model_id = "TinyLlama/TinyLlama_v1.1"
+output_dir = "outputs/tinyllama-v1.1-lora"
 
 # Additional parameters
 additional_lora_configs = {}
@@ -101,28 +101,43 @@ if script_args.ft_method == "dora":
 if script_args.quantization_type == "qlora":
     quantization_config = BitsAndBytesConfig(
         load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_quant_type="nf4"
     )
 elif script_args.quantization_type == "loftq":
-    additional_lora_configs["init_lora_weights"] = "loftq",
+    additional_lora_configs["init_lora_weights"] = "loftq"
     additional_lora_configs["loftq_config"] = LoftQConfig(loftq_bits=4)
 
 # Load model
+print("Load model...")
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    torch_dtype=torch.float32,
     attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
     token=os.environ["HF_TOKEN"],
     quantization_config=quantization_config, 
+    torch_dtype=torch.float16 if "TinyLlama" in model_id else torch.float32,
 )
 
+# Casts LayerNorms to float32 and prepares the model for gradient checkpointing
+# Avoid Inf NaN errors
+if quantization_config is not None: 
+    model = prepare_model_for_kbit_training(model)
+
 # Load tokenizer
+print("Load tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
+tokenizer.padding_side = "right"
+tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = tokenizer.eos_token_id
 
+# Update model config to match tokenizer
+model.config.pad_token_id = tokenizer.pad_token_id
+model.generation_config.pad_token_id = tokenizer.pad_token_id
+model.config.use_cache = False
+
 def formatting_func(example):
-    text = f"Quote: {example['quote']}\nAuthor: {example['author']}" + tokenizer.eos_token
+    text = tokenizer.bos_token + f"Quote: {example['quote']}\nAuthor: {example['author']}" + tokenizer.eos_token
+    print(text)
     return text
 
 lora_config = LoraConfig(
@@ -160,8 +175,10 @@ training_arguments = SFTConfig(
     max_length=script_args.max_seq_length,
 )
 
+print("Start training...")
 trainer = SFTTrainer(
     model=model,
+    processing_class=tokenizer,
     args=training_arguments,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
