@@ -70,12 +70,17 @@ Now we will compare different types of quantization and finetuning methods:
 
 |Model        |Method-Quant |ROUGE-1 |ROUGE-2 |ROUGE-L |ROUGE-Lsum |Bert-Precision |Bert-Recall |Bert-F1 | 
 |---          |---          |---     |---     |---     |---        |---            |---         |---     |
-|Gemma-2b     |QLora-Lora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
 |Gemma-2b     |QLora-Dora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
-|TinyLlamav1.1|None-Lora    |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
-|TinyLlamav1.1|QLora-Lora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
-|TinyLlamav1.1|LoftQ-Lora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
+|TinyLlamav1.1|None-Dora    |0.3917  |0.1200  |0.3909  |0.3917     |0.9235         |0.9107      |0.9167  |
+|TinyLlamav1.1|QLora-Dora   |0.3913  |0.1328  |0.3904  |0.3904     |0.9230         |0.9067      |0.9144  |
 |TinyLlamav1.1|LoftQ-Dora   |0.4051  |0.1470  |0.4060  |0.4061     |0.9266         |0.9117      |0.9187  |
+
+
+Must do:
+- Run different possible combinations for LLama3.2-1b
+- Train bert as reward model (?) to compare the two authors
+- Fine tune a completion model as a chat model (possible?)
+
 
 ```
 lm_eval --model hf \

@@ -5,19 +5,27 @@ import torch
 import os
 
 from dotenv import load_dotenv
-from transformers import AutoTokenizer, HfArgumentParser, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset
+from transformers import (
+    AutoTokenizer,
+    HfArgumentParser,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+)
 from peft import LoraConfig, LoftQConfig, prepare_model_for_kbit_training
 from trl import SFTTrainer, SFTConfig
 
+from Datasets.EnglishQuotes import EnglishQuotesDataset
+
 load_dotenv()
 os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
+
 
 @dataclass
 class ScriptArguments:
     """
     These arguments vary depending on how many GPUs you have, what their capacity and features are, and what size model you want to train.
     """
+
     per_device_train_batch_size: Optional[int] = field(default=1)
     per_device_eval_batch_size: Optional[int] = field(default=1)
     gradient_accumulation_steps: Optional[int] = field(default=4)
@@ -30,9 +38,7 @@ class ScriptArguments:
     max_seq_length: Optional[int] = field(default=2048)
     model_name: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "The model that you want to train from the Hugging Face hub. E.g. gpt2, gpt2-xl, bert, etc."
-        }
+        metadata={"help": "The model that you want to train from the Hugging Face hub. E.g. gpt2, gpt2-xl, bert, etc."},
     )
     dataset_name: Optional[str] = field(
         default="Abirate/english_quotes",
@@ -43,7 +49,7 @@ class ScriptArguments:
         metadata={"help": "Enables fp16 training."},
     )
     bf16: Optional[bool] = field(
-        default=True,
+        default=False,
         metadata={"help": "Enables bf16 training."},
     )
     packing: Optional[bool] = field(
@@ -67,7 +73,7 @@ class ScriptArguments:
         metadata={"help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"},
     )
     quantization_type: str = field(
-        default="loftq",
+        default="qlora",
         metadata={"help": "Quantization type choosing between LoftQ and QLora or None. Possible values loftq, qlora, none"},
     )
     ft_method: str = field(
@@ -83,13 +89,14 @@ class ScriptArguments:
         metadata={"help": "The output directory where the model predictions and checkpoints will be written."},
     )
 
+
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
 
 # Load the GG model
-model_id = "TinyLlama/TinyLlama_v1.1" # "google/gemma-2b"
-output_dir = "outputs/tinyllama-v1.1-lora" # "outputs/gemma-2b-lora"
+model_id = "google/gemma-2b" # "TinyLlama/TinyLlama_v1.1"
+output_dir = "outputs/gemma-2b-lora" # "outputs/tinyllama-v1.1-lora"
 
 # Additional parameters
 additional_lora_configs = {}
@@ -101,8 +108,8 @@ if script_args.ft_method == "dora":
 if script_args.quantization_type == "qlora":
     quantization_config = BitsAndBytesConfig(
         load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_quant_type="nf4"
+        bnb_4bit_compute_dtype=(torch.bfloat16 if "TinyLlama" in model_id else torch.float16),
+        bnb_4bit_quant_type="nf4",
     )
 elif script_args.quantization_type == "loftq":
     additional_lora_configs["init_lora_weights"] = "loftq"
@@ -112,15 +119,16 @@ elif script_args.quantization_type == "loftq":
 print("Load model...")
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
+    attn_implementation=("sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2"),
     token=os.environ["HF_TOKEN"],
-    quantization_config=quantization_config, 
-    torch_dtype=torch.float16 if "TinyLlama" in model_id else torch.float32,
+    quantization_config=quantization_config,
+    torch_dtype=torch.bfloat16 if "TinyLlama" in model_id else torch.float32,
+    device_map="auto" if quantization_config is not None else None,
 )
 
 # Casts LayerNorms to float32 and prepares the model for gradient checkpointing
 # Avoid Inf NaN errors
-if quantization_config is not None: 
+if quantization_config is not None:
     model = prepare_model_for_kbit_training(model)
 
 # Load tokenizer
@@ -135,26 +143,27 @@ model.config.pad_token_id = tokenizer.pad_token_id
 model.generation_config.pad_token_id = tokenizer.pad_token_id
 model.config.use_cache = False
 
-def formatting_func(example):
-    text = tokenizer.bos_token + f"Quote: {example['quote']}\nAuthor: {example['author']}" + tokenizer.eos_token
-    print(text)
-    return text
-
 lora_config = LoraConfig(
     r=script_args.lora_r,
-    target_modules=["q_proj", "o_proj", "k_proj", "v_proj", "gate_proj", "up_proj", "down_proj"],
+    target_modules=[
+        "q_proj",
+        "o_proj",
+        "k_proj",
+        "v_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+    ],
     bias="none",
     task_type="CAUSAL_LM",
     lora_alpha=script_args.lora_alpha,
     lora_dropout=script_args.lora_dropout,
     # LoftQ and Dora configs
-    **additional_lora_configs
+    **additional_lora_configs,
 )
 
-dataset = load_dataset(script_args.dataset_name, split="train")
-dataset = dataset.train_test_split(test_size=0.1, seed=42)
-train_dataset = dataset["train"]
-eval_dataset = dataset["test"]
+if script_args.dataset_name == "Abirate/english_quotes":
+    dataset = EnglishQuotesDataset(script_args.dataset_name, tokenizer.bos_token, tokenizer.eos_token)
 
 training_arguments = SFTConfig(
     output_dir=output_dir,
@@ -180,10 +189,10 @@ trainer = SFTTrainer(
     model=model,
     processing_class=tokenizer,
     args=training_arguments,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,
+    train_dataset=dataset.train_dataset,
+    eval_dataset=dataset.eval_dataset,
     peft_config=lora_config,
-    formatting_func=formatting_func,
+    formatting_func=dataset.formatting_func,
 )
 
 trainer.train()
