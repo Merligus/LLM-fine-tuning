@@ -95,8 +95,8 @@ script_args = parser.parse_args_into_dataclasses()[0]
 
 
 # Load the GG model
-model_id = "google/gemma-2b" # "TinyLlama/TinyLlama_v1.1"
-output_dir = "outputs/gemma-2b-lora" # "outputs/tinyllama-v1.1-lora"
+model_id = "meta-llama/Llama-3.2-1B"  # "TinyLlama/TinyLlama_v1.1", "google/gemma-2b"
+output_dir = "outputs/llama-3.2-lora"  # "outputs/tinyllama-v1.1-lora", "outputs/gemma-2b-lora"
 
 # Additional parameters
 additional_lora_configs = {}

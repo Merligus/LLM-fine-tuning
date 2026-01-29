@@ -87,10 +87,10 @@ def compute_metrics(predictions, references):
 
 
 # Load the GG model
-model_id = "TinyLlama/TinyLlama_v1.1"  # "google/gemma-2b"
-output_dir = "outputs/tinyllama-v1.1-lora/checkpoint-100"  # "outputs/gemma-2b-lora/checkpoint-100"
+model_id = "meta-llama/Llama-3.2-1B" # "TinyLlama/TinyLlama_v1.1", "google/gemma-2b"
+output_dir = "outputs/llama-3.2-lora/checkpoint-100" # "outputs/tinyllama-v1.1-lora/checkpoint-100", "outputs/gemma-2b-lora/checkpoint-100"
 dataset_name = "Abirate/english_quotes"
-quantization_type = "none"
+quantization_type = "qlora"
 
 # Quantization config
 if quantization_type == "qlora":
