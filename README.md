@@ -79,8 +79,8 @@ Now we will compare different types of quantization and finetuning methods:
 |Llama3.2-1b  |LoftQ-Dora   |0.0000  |0.0000  |0.0000  |0.0000     |0.0000         |0.0000      |0.0000  |
 
 Must do:
+- Train tiny llama as a reward model to compare the two authors
 - Run different possible combinations for LLama3.2-1b
-- Train bert as reward model (?) to compare the two authors
 - Fine tune a completion model as a chat model (possible?)
 
 

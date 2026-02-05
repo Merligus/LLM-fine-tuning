@@ -2,6 +2,9 @@ import torch
 import gc
 import os
 
+# eval metrics
+import evaluate
+
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import PeftModel
@@ -87,8 +90,8 @@ def compute_metrics(predictions, references):
 
 
 # Load the GG model
-model_id = "meta-llama/Llama-3.2-1B" # "TinyLlama/TinyLlama_v1.1", "google/gemma-2b"
-output_dir = "outputs/llama-3.2-lora/checkpoint-100" # "outputs/tinyllama-v1.1-lora/checkpoint-100", "outputs/gemma-2b-lora/checkpoint-100"
+model_id = "meta-llama/Llama-3.2-1B" # "TinyLlama/TinyLlama_v1.1", "google/gemma-2b", "meta-llama/Llama-3.2-1B"
+output_dir = "outputs/llama-3.2-lora/checkpoint-100" # "outputs/tinyllama-v1.1-lora/checkpoint-100", "outputs/gemma-2b-lora/checkpoint-100", "outputs/llama-3.2-lora/checkpoint-100"
 dataset_name = "Abirate/english_quotes"
 quantization_type = "qlora"
 
@@ -134,9 +137,6 @@ del base_model
 # Force garbage collection
 gc.collect()
 torch.cuda.empty_cache()
-
-# eval metrics
-import evaluate
 
 eval_results = compute_metrics(eval_predictions, eval_references)
 print("Eval:")
